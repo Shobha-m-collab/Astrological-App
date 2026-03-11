@@ -1,0 +1,62 @@
+{
+  "Aries": {
+    "personality": "Bold, energetic, initiator, competitive.",
+    "strengths": "Leadership, courage, action-oriented, optimism.",
+    "challenges": "Impatient, impulsive, short-tempered."
+  },
+  "Taurus": {
+    "personality": "Reliable, grounded, loyal, beauty-loving.",
+    "strengths": "Patience, practicality, determination.",
+    "challenges": "Stubbornness, resistance to change."
+  },
+  "Gemini": {
+    "personality": "Curious, expressive, adaptable, witty.",
+    "strengths": "Communication, creativity, social intelligence.",
+    "challenges": "Inconsistency, restlessness."
+  },
+  "Cancer": {
+    "personality": "Nurturing, intuitive, protective, sentimental.",
+    "strengths": "Empathy, loyalty, imagination, persuasiveness.",
+    "challenges": "Moodiness, insecurity, over-sensitivity."
+  },
+  "Leo": {
+    "personality": "Confident, charismatic, generous, dramatic.",
+    "strengths": "Leadership, creativity, passion, warm-heartedness.",
+    "challenges": "Arrogance, inflexibility, self-centeredness."
+  },
+  "Virgo": {
+    "personality": "Analytical, hardworking, modest, systematic.",
+    "strengths": "Attention to detail, reliability, practical problem-solving.",
+    "challenges": "Over-criticality, perfectionism, worrying."
+  },
+  "Libra": {
+    "personality": "Diplomatic, artistic, social, harmony-seeking.",
+    "strengths": "Fairness, cooperation, idealism, grace.",
+    "challenges": "Indecisiveness, avoiding conflict, self-pity."
+  },
+  "Scorpio": {
+    "personality": "Intense, passionate, resourceful, mysterious.",
+    "strengths": "Bravery, focus, loyalty, emotional depth.",
+    "challenges": "Jealousy, secrecy, distrustfulness."
+  },
+  "Sagittarius": {
+    "personality": "Adventurous, philosophical, optimistic, freedom-loving.",
+    "strengths": "Generosity, great sense of humor, honesty.",
+    "challenges": "Tactlessness, over-promising, impatience."
+  },
+  "Capricorn": {
+    "personality": "Disciplined, ambitious, responsible, traditional.",
+    "strengths": "Time management, persistence, practicality.",
+    "challenges": "Pessimism, coldness, unforgiving nature."
+  },
+  "Aquarius": {
+    "personality": "Original, independent, humanitarian, intellectual.",
+    "strengths": "Progressive thinking, originality, friendliness.",
+    "challenges": "Emotional aloofness, temperamental, uncompromising."
+  },
+  "Pisces": {
+    "personality": "Compassionate, artistic, intuitive, gentle.",
+    "strengths": "Wisdom, empathy, musical/artistic talent.",
+    "challenges": "Escapism, being overly trusting, victim mentality."
+  }
+}
