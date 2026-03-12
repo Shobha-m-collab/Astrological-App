@@ -1,62 +1,30 @@
-from .memory import get_history, save_turn
 from .zodiac import get_zodiac
-from .intent_router import should_retrieve
-from .retriever import Retriever
 from .llm import generate_response
 
+def chat(payload: dict, retriever, memory, router):
+    session_id = payload.get("session_id")
+    message = payload.get("message")
+    user_profile = payload.get("user_profile", {})
 
-# initialize retriever once (avoids rebuilding index every request)
-retriever = Retriever()
-
-
-def chat(request):
-
-    session_id = request.get("session_id")
-    message = request.get("message")
-    user_profile = request.get("user_profile", {})
-
-    # -----------------------------
-    # Extract user profile fields
-    # -----------------------------
     birth_date = user_profile.get("birth_date")
     preferred_language = user_profile.get("preferred_language", "en")
 
-    # -----------------------------
-    # Determine zodiac
-    # -----------------------------
+    # 1. Fast computations (~1ms)
     zodiac = get_zodiac(birth_date)
+    history = memory.get_history(session_id)
+    retrieval_used = router.should_retrieve(message)
 
-    # -----------------------------
-    # Retrieve conversation history
-    # -----------------------------
-    history = get_history(session_id)
-
-    # -----------------------------
-    # Decide if retrieval is needed
-    # -----------------------------
-    retrieval_used = should_retrieve(message)
-
+    # 2. Retrieval (~50ms because index is already in RAM)
     retrieved_docs = []
     context_used = []
 
-    # -----------------------------
-    # Hybrid Retrieval
-    # -----------------------------
     if retrieval_used:
+        # Appending Zodiac naturally guides the vector search
+        expanded_query = f"{message} {zodiac}"
+        retrieved_docs = retriever.search(expanded_query, top_k=2)
+        context_used = list(set([doc["source"] for doc in retrieved_docs]))
 
-        # Query expansion improves recall
-        expanded_query = f"{message} astrology zodiac horoscope prediction relationships career"
-
-        docs = retriever.search(expanded_query)
-
-        retrieved_docs = docs
-
-        # extract sources used
-        context_used = list(set([doc["source"] for doc in docs]))
-
-    # -----------------------------
-    # Generate LLM response
-    # -----------------------------
+    # 3. LLM Generation (~800ms to 1.5s depending on Ollama speed)
     response = generate_response(
         message=message,
         zodiac=zodiac,
@@ -65,14 +33,9 @@ def chat(request):
         language=preferred_language
     )
 
-    # -----------------------------
-    # Save conversation turn
-    # -----------------------------
-    save_turn(session_id, message, response)
+    # 4. Save to memory (~1ms)
+    memory.save_turn(session_id, message, response)
 
-    # -----------------------------
-    # API response format
-    # -----------------------------
     return {
         "response": response,
         "zodiac": zodiac,

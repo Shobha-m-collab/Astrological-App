@@ -1,75 +1,66 @@
 import ollama
-
+import re
 
 def generate_response(message, zodiac, history, context, language="en"):
-
-    # -----------------------------------
-    # Convert retrieved docs to text
-    # -----------------------------------
-    context_text = ""
-
-    if context:
-        context_text = "\n".join([doc["text"] for doc in context])
-
-    # -----------------------------------
-    # Format conversation history
-    # -----------------------------------
-    history_text = ""
-
+    
+    # 1. Format context and history cleanly
+    context_text = "\n".join([f"- {doc['text']}" for doc in context]) if context else "None."
+    
+    # 2. Handle the Empty History Edge Case
     if history:
-        history_text = "\n".join(history)
-
-    # -----------------------------------
-    # Language instruction
-    # -----------------------------------
-    if language == "hi":
-        language_instruction = "Respond in Hindi."
+        history_text = "\n".join([f"User: {h['user']}\nYou: {h['assistant']}" for h in history])
     else:
-        language_instruction = "Respond in English."
+        history_text = "EMPTY. This is the very first message of the conversation."
 
-    # -----------------------------------
-    # System Prompt (controls behavior)
-    # -----------------------------------
-    system_prompt = f"""
-You are an astrology assistant.
+    lang_instruction = "Respond strictly in Hindi." if language == "hi" else "Respond in English."
 
-Guidelines:
-- Provide the answer as plain text.
-- Do not use bullet points, markdown, or special formatting.
-- Use the provided astrology knowledge when relevant.
-- Do not invent planetary positions or birth chart details.
-- Keep the response concise (80–120 words).
-- Give helpful astrology-based guidance, not deterministic predictions.
-- If no relevant context is provided, answer generally using astrology knowledge.
+    # 3. Strengthened System Prompt Guardrails
+    system_prompt = f"""You are Astro, an expert, concise astrology assistant.
+User Zodiac: {zodiac}.
+{lang_instruction}
 
-User Zodiac Sign: {zodiac}
-
-{language_instruction}
+CRITICAL RULES:
+1. Respond under 5 sentences.
+2. You are the assistant. NEVER generate follow-up questions, user prompts, or instructions.
+3. If the user asks for a summary, but the Conversation History is "EMPTY", politely explain that there is no past conversation to summarize yet, and offer to give them general astrology guidance for their Zodiac sign.
+4. Base your answers on the provided Astrological Facts if available. 
+5.Try to give positive answers when 'retrieval_used' is false.
 """
 
-    # -----------------------------------
-    # Final user prompt
-    # -----------------------------------
-    user_prompt = f"""
-Conversation History:
+    user_prompt = f"""Conversation History:
 {history_text}
 
-Astrology Knowledge:
+Astrological Facts:
 {context_text}
 
-User Question:
-{message}
-"""
+User Question: {message}
 
-    # -----------------------------------
-    # Call Ollama
-    # -----------------------------------
+Assistant Response:"""
+
+    # 4. Call Ollama
     response = ollama.chat(
-        model="llama3",
+        model="phi3:mini", # or llama3:8b
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
     )
 
-    return response["message"]["content"]
+    raw_content = response["message"]["content"]
+
+    # --- AGGRESSIVE CLEANUP LOGIC ---
+    
+    # If the model hallucinates and adds "\n\nSummarize this...", we cut off 
+    # everything after the first double-newline to keep only the actual answer.
+    if "\n\n" in raw_content:
+        raw_content = raw_content.split("\n\n")[0]
+
+    # Clean up any remaining rogue newlines or extra spaces
+    clean_content = re.sub(r'\s+', ' ', raw_content).strip()
+
+    # Remove hallucinated prefixes/suffixes if they appear
+    bad_phrases = ["Summary:", "Conclusion:", "Assistant Response:"]
+    for phrase in bad_phrases:
+        clean_content = clean_content.replace(phrase, "").strip()
+
+    return clean_content
