@@ -1,5 +1,7 @@
 from .zodiac import get_zodiac
-from .llm import generate_response
+from .llm import ensure_model_exists,generate_response
+
+ensure_model_exists("phi3:mini")
 
 def chat(payload: dict, retriever, memory, router):
     session_id = payload.get("session_id")
@@ -9,12 +11,12 @@ def chat(payload: dict, retriever, memory, router):
     birth_date = user_profile.get("birth_date")
     preferred_language = user_profile.get("preferred_language", "en")
 
-    # 1. Fast computations (~1ms)
+    # Fast computations (~1ms)
     zodiac = get_zodiac(birth_date)
     history = memory.get_history(session_id)
     retrieval_used = router.should_retrieve(message)
 
-    # 2. Retrieval (~50ms because index is already in RAM)
+    # Retrieval (~50ms, index is already in RAM)
     retrieved_docs = []
     context_used = []
 
@@ -24,7 +26,7 @@ def chat(payload: dict, retriever, memory, router):
         retrieved_docs = retriever.search(expanded_query, top_k=2)
         context_used = list(set([doc["source"] for doc in retrieved_docs]))
 
-    # 3. LLM Generation (~800ms to 1.5s depending on Ollama speed)
+    # LLM Generation (~800ms to 1.5s depending on Ollama speed)
     response = generate_response(
         message=message,
         zodiac=zodiac,
@@ -33,7 +35,7 @@ def chat(payload: dict, retriever, memory, router):
         language=preferred_language
     )
 
-    # 4. Save to memory (~1ms)
+    # Save to memory (~1ms)
     memory.save_turn(session_id, message, response)
 
     return {

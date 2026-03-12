@@ -3,47 +3,46 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 
-# Import your components based on your directory structure
+# Import your components
 from app.chat_service import chat
 from app.retriever import Retriever        
 from app.memory import MemoryManager       
 from app.intent_router import IntentRouter 
+from app.llm import ensure_model_exists
 
-# Lifespan (loads Heavy ML Models once)
+#Pull the ollama model if it's not yet done
+ensure_model_exists(model_name='phi3:mini')
+
+# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Starting up: Loading Vector DB, Memory, and Models into RAM...")
-    
-    # Initialize heavy resources ONCE and store them in app.state
+    print("🚀 Starting up: Loading Vector DB, Memory, and Models...")
     app.state.retriever = Retriever()  
     app.state.memory = MemoryManager() 
     app.state.router = IntentRouter()  
-    
-    print("✅ All resources loaded successfully! API is ready.")
+    print("✅ All resources loaded successfully!")
     yield
-    print("🛑 Shutting down: Cleaning up resources...")
+    print("🛑 Shutting down...")
 
-
-# INITIALIZE 'app'
+# --- INITIALIZE APP ---
 app = FastAPI(
     title="Astrology RAG Assistant",
     description="Astrology chatbot with retrieval-augmented generation",
-    version="1.0",
+    version="2.1",
     lifespan=lifespan
 )
 
-
-# Pydantic Models for Swagger UI Documentation
+# --- INPUT SCHEMAS ---
 class UserProfile(BaseModel):
-    name: str = Field(..., description="User's full name", examples=["Ritika"])
-    birth_date: str = Field(..., description="Birth date strictly in YYYY-MM-DD format", examples=["1995-08-20"])
-    birth_time: str = Field(..., description="Birth time in HH:MM format (24-hour)", examples=["14:30"])
-    birth_place: str = Field(..., description="City and Country of birth", examples=["Jaipur, India"])
-    preferred_language: str = Field(default="en", description="Language code ('en' or 'hi')", examples=["hi"])
+    name: str = Field(..., description="User's full name")
+    birth_date: str = Field(..., description="YYYY-MM-DD")
+    birth_time: str = Field(..., description="HH:MM (24-hour)")
+    birth_place: str = Field(..., description="City, Country")
+    preferred_language: str = Field(default="en", description="Language code ('en' or 'hi')")
 
 class ChatRequest(BaseModel):
-    session_id: str = Field(..., description="Unique session ID for memory", examples=["abc-123"])
-    message: str = Field(..., description="User message", examples=["How will my month be in career?"])
+    session_id: str
+    message: str
     user_profile: UserProfile
 
     model_config = {
@@ -53,40 +52,45 @@ class ChatRequest(BaseModel):
                 "message": "How will my month be in career?",
                 "user_profile": {
                     "name": "Priyanka",
-                    "birth_date": "1995-08-20",
+                    "birth_date": "1998-01-20",
                     "birth_time": "14:30",
-                    "birth_place": "Bangalore, India",
-                    "preferred_language": "en",
-                   # "goals": "career growth"
+                    "birth_place": "Jaipur, India",
+                    "preferred_language": "hi"
                 }
             }
         }
     }
 
+# --- OUTPUT SCHEMA (Strictly matches the Assignment PDF) ---
+class ChatResponse(BaseModel):
+    response: str
+    zodiac: str
+    context_used: list[str]
+    retrieval_used: bool
 
-# Endpoints
-@app.post("/chat")
+
+# --- ENDPOINTS ---
+@app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, fastapi_req: Request):
-    # Fetch pre-loaded instances from app state
+    # Fetch pre-loaded instances
     retriever = fastapi_req.app.state.retriever
     memory = fastapi_req.app.state.memory
     router = fastapi_req.app.state.router
 
-    # Convert Pydantic model to dictionary 
+    # Convert to dict
     payload = request.model_dump()
-
-    # Pass the payload AND the pre-loaded instances to your chat service
-    response = chat(
+    
+    # Call your chat logic
+    raw_response = chat(
         payload=payload,
         retriever=retriever,
         memory=memory,
         router=router
     )
 
-    return response
+    # FastAPI will automatically validate this dict against ChatResponse
+    return raw_response
 
-
-# Start the server (Required when using `uv run main.py` or `python main.py`)
+# --- SERVER START ---
 if __name__ == "__main__":
-    # This runs uvicorn programmatically
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

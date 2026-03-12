@@ -1,12 +1,21 @@
 import ollama
 import re
 
+def ensure_model_exists(model_name="phi3:mini"):
+    try:
+        # Check if model exists locally
+        ollama.show(model_name)
+    except ollama.ResponseError:
+        print(f"Model {model_name} not found. Pulling now...")
+        ollama.pull(model_name)
+
+
 def generate_response(message, zodiac, history, context, language="en"):
     
-    # 1. Format context and history cleanly
+    # Format context and history cleanly
     context_text = "\n".join([f"- {doc['text']}" for doc in context]) if context else "None."
     
-    # 2. Handle the Empty History Edge Case
+    # Handle the Empty History Edge Case
     if history:
         history_text = "\n".join([f"User: {h['user']}\nYou: {h['assistant']}" for h in history])
     else:
@@ -14,7 +23,7 @@ def generate_response(message, zodiac, history, context, language="en"):
 
     lang_instruction = "Respond strictly in Hindi." if language == "hi" else "Respond in English."
 
-    # 3. Strengthened System Prompt Guardrails
+    # Strengthened System Prompt Guardrails
     system_prompt = f"""You are Astro, an expert, concise astrology assistant.
 User Zodiac: {zodiac}.
 {lang_instruction}
@@ -37,7 +46,7 @@ User Question: {message}
 
 Assistant Response:"""
 
-    # 4. Call Ollama
+    # Call Ollama
     response = ollama.chat(
         model="phi3:mini", # or llama3:8b
         messages=[
